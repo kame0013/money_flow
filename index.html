@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geldfluss – Sankey-Diagramm</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 1rem;
+      color: #333;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem 0; }
+    .layout {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .panel h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem 0;
+      color: #555;
+    }
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .form-row label {
+      min-width: 10rem;
+      font-size: 0.9rem;
+    }
+    .form-row input[type="number"] {
+      width: 6rem;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .form-row input:focus {
+      outline: none;
+      border-color: #666;
+    }
+    .form-row input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .income-row { margin-bottom: 0.5rem; }
+    .income-row .label-input { flex: 1; min-width: 8rem; }
+    .income-row .value-input { width: 6rem; flex-shrink: 0; }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1.25rem;
+      font-size: 1rem;
+      background: #2a7f62;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #236b52; }
+    #diagram {
+      min-width: 320px;
+      flex: 1;
+      min-height: 400px;
+    }
+    #diagram svg {
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+    }
+    .node rect {
+      stroke: #999;
+      stroke-width: 1px;
+    }
+    .link {
+      fill: none;
+      stroke-opacity: 0.6;
+    }
+    .link:hover { stroke-opacity: 0.9; }
+    .node-label {
+      font-size: 13px;
+      font-weight: 500;
+      fill: #333;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: #fff;
+      stroke-width: 2px;
+    }
+    .node-value {
+      font-size: 12px;
+      fill: #555;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: #fff;
+      stroke-width: 2px;
+    }
+    .flow-value {
+      font-size: 11px;
+      fill: #444;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Geldfluss – Sankey-Diagramm</h1>
+  <div class="layout">
+    <div class="panel">
+      <h2>Einnahmen</h2>
+      <div class="form-row income-row">
+        <input type="text" id="income1-label" class="label-input" placeholder="z. B. Gehalt" value="Gehalt" />
+        <input type="number" id="income1-value" class="value-input" value="1900" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="income2-label" class="label-input" placeholder="z. B. Weitere Einkünfte" value="Weitere Einkünfte" />
+        <input type="number" id="income2-value" class="value-input" value="400" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="income3-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
+        <input type="number" id="income3-value" class="value-input" value="0" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="income4-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
+        <input type="number" id="income4-value" class="value-input" value="0" min="0" step="10" />
+      </div>
+      <h2>Hauptkategorien (vom Budget)</h2>
+      <div class="form-row">
+        <label for="wohnen">Wohnen</label>
+        <input type="number" id="wohnen" value="950" min="0" step="10" />
+      </div>
+      <div class="form-row">
+        <label for="taeglich">Täglicher Bedarf</label>
+        <input type="number" id="taeglich" value="650" min="0" step="10" />
+      </div>
+      <div class="form-row">
+        <label for="sparen">Sparen</label>
+        <input type="number" id="sparen" value="700" min="0" step="10" />
+      </div>
+      <h2>Wohnen →</h2>
+      <div class="form-row">
+        <label for="miete">Miete</label>
+        <input type="number" id="miete" value="850" min="0" step="10" />
+      </div>
+      <div class="form-row">
+        <label for="strom">Strom</label>
+        <input type="number" id="strom" value="100" min="0" step="10" />
+      </div>
+      <h2>Täglicher Bedarf →</h2>
+      <div class="form-row">
+        <label for="lebensmittel">Lebensmittel</label>
+        <input type="number" id="lebensmittel" value="400" min="0" step="10" />
+      </div>
+      <div class="form-row">
+        <label for="auto">Auto</label>
+        <input type="number" id="auto" value="250" min="0" step="10" />
+      </div>
+      <button type="button" id="btn-create">Diagramm erstellen</button>
+    </div>
+    <div class="panel" id="diagram"></div>
+  </div>
+
+  <script>
+    (function () {
+      const formatDE = (n) =>
+        new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + '€';
+
+      function getValues() {
+        const incomes = [1, 2, 3, 4].map((i) => ({
+          label: (document.getElementById(`income${i}-label`).value || '').trim(),
+          value: Number(document.getElementById(`income${i}-value`).value) || 0,
+        }));
+        return {
+          incomes,
+          wohnen: Number(document.getElementById('wohnen').value) || 0,
+          taeglich: Number(document.getElementById('taeglich').value) || 0,
+          sparen: Number(document.getElementById('sparen').value) || 0,
+          miete: Number(document.getElementById('miete').value) || 0,
+          strom: Number(document.getElementById('strom').value) || 0,
+          lebensmittel: Number(document.getElementById('lebensmittel').value) || 0,
+          auto: Number(document.getElementById('auto').value) || 0,
+        };
+      }
+
+      const INCOME_COLORS = ['#7eb8da', '#e8a87c', '#9ecae1', '#fdcc8a'];
+
+      function buildSankeyData(v) {
+        const usedNames = new Set();
+        const activeIncomes = v.incomes
+          .map((inc, i) => {
+            let name = inc.label.trim() || `Einnahme ${i + 1}`;
+            if (usedNames.has(name)) {
+              let n = 2;
+              while (usedNames.has(`${name} (${n})`)) n++;
+              name = `${name} (${n})`;
+            }
+            usedNames.add(name);
+            return { ...inc, name, color: INCOME_COLORS[i % INCOME_COLORS.length] };
+          })
+          .filter((inc) => inc.value > 0);
+        const budget = activeIncomes.reduce((sum, inc) => sum + inc.value, 0);
+
+        const nodes = [
+          ...activeIncomes.map((inc) => ({ id: inc.name, color: inc.color })),
+          { id: 'Budget', color: '#6b6b6b' },
+          { id: 'Wohnen', color: '#e8d66a' },
+          { id: 'Täglicher Bedarf', color: '#7bc67e' },
+          { id: 'Sparen', color: '#7eb8da' },
+          { id: 'Miete', color: '#e8d66a' },
+          { id: 'Strom', color: '#f0e88a' },
+          { id: 'Lebensmittel', color: '#7bc67e' },
+          { id: 'Auto', color: '#8ed4a0' },
+        ];
+        const incomeLinks = activeIncomes.map((inc) => ({ source: inc.name, target: 'Budget', value: inc.value }));
+        const links = [
+          ...incomeLinks,
+          { source: 'Budget', target: 'Wohnen', value: v.wohnen },
+          { source: 'Budget', target: 'Täglicher Bedarf', value: v.taeglich },
+          { source: 'Budget', target: 'Sparen', value: v.sparen },
+          { source: 'Wohnen', target: 'Miete', value: v.miete },
+          { source: 'Wohnen', target: 'Strom', value: v.strom },
+          { source: 'Täglicher Bedarf', target: 'Lebensmittel', value: v.lebensmittel },
+          { source: 'Täglicher Bedarf', target: 'Auto', value: v.auto },
+        ].filter((l) => l.value > 0);
+
+        return { nodes: nodes.map((n) => ({ name: n.id, color: n.color })), links };
+      }
+
+      function render(el, data) {
+        d3.select(el).selectAll('*').remove();
+        if (data.links.length === 0) {
+          el.innerHTML = '<p style="padding:1rem;color:#666;">Werte eingeben und „Diagramm erstellen“ klicken.</p>';
+          return;
+        }
+
+        const nodeMap = new Map(data.nodes.map((n, i) => [n.name, n]));
+        const nodeColors = data.nodes.map((n) => n.color || '#999');
+        const sankeyNodes = data.nodes.map((n) => ({ name: n.name }));
+        const sankeyLinks = data.links.map((l) => ({
+          source: sankeyNodes.findIndex((n) => n.name === l.source),
+          target: sankeyNodes.findIndex((n) => n.name === l.target),
+          value: l.value,
+        }));
+
+        const width = el.clientWidth || 600;
+        const height = Math.max(400, el.clientHeight || 400);
+        const margin = { top: 20, right: 80, bottom: 20, left: 20 };
+        const diagramWidth = width - margin.left - margin.right;
+        const diagramHeight = height - margin.top - margin.bottom;
+
+        const sankey = d3.sankey()
+          .nodeWidth(24)
+          .nodePadding(14)
+          .size([diagramWidth, diagramHeight])
+          .nodeAlign(d3.sankeyLeft);
+
+        const { nodes, links } = sankey({
+          nodes: sankeyNodes.map((d) => ({ ...d })),
+          links: sankeyLinks,
+        });
+
+        const svg = d3.select(el).append('svg').attr('width', width).attr('height', height);
+        const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+        const link = g.append('g')
+          .selectAll('path')
+          .data(links)
+          .join('path')
+          .attr('class', 'link')
+          .attr('d', d3.sankeyLinkHorizontal())
+          .attr('stroke', (d) => {
+            const i = d.source.index;
+            return nodeColors[i] || '#999';
+          })
+          .attr('stroke-width', (d) => Math.max(2, d.width));
+
+        link.append('title').text((d) => formatDE(d.value));
+
+        const node = g.append('g')
+          .selectAll('g')
+          .data(nodes)
+          .join('g')
+          .attr('transform', (d) => `translate(${d.x0},${d.y0})`);
+
+        node.append('rect')
+          .attr('width', (d) => d.x1 - d.x0)
+          .attr('height', (d) => d.y1 - d.y0)
+          .attr('fill', (d) => nodeColors[d.index])
+          .attr('stroke', '#999');
+
+        const labelPadding = 8;
+        const rightmostX = d3.max(nodes, (n) => n.x0);
+        node.each(function (d) {
+          const nodeW = d.x1 - d.x0;
+          const nodeH = d.y1 - d.y0;
+          const isRightmostColumn = d.x0 >= rightmostX - 1;
+          const toLeft = isRightmostColumn;
+          const textX = toLeft ? -labelPadding : nodeW + labelPadding;
+          const textAnchor = toLeft ? 'end' : 'start';
+          const g = d3.select(this);
+          g.append('text')
+            .attr('class', 'node-label')
+            .attr('x', textX)
+            .attr('y', nodeH / 2 - 6)
+            .attr('text-anchor', textAnchor)
+            .attr('dy', '0.35em')
+            .text(d.name);
+          g.append('text')
+            .attr('class', 'node-value')
+            .attr('x', textX)
+            .attr('y', nodeH / 2 + 8)
+            .attr('text-anchor', textAnchor)
+            .attr('dy', '0.35em')
+            .text(() => {
+              const incoming = d3.sum(links.filter((l) => l.target === d), (l) => l.value);
+              const outgoing = d3.sum(links.filter((l) => l.source === d), (l) => l.value);
+              return formatDE(incoming || outgoing);
+            });
+        });
+      }
+
+      const diagramEl = document.getElementById('diagram');
+      document.getElementById('btn-create').addEventListener('click', () => {
+        const v = getValues();
+        const data = buildSankeyData(v);
+        render(diagramEl, data);
+      });
+
+      // Initial render with example data
+      const initial = getValues();
+      render(diagramEl, buildSankeyData(initial));
+    })();
+  </script>
+</body>
+</html>
