@@ -163,6 +163,14 @@
         <input type="text" id="strom-label" class="label-input" placeholder="Bezeichnung" value="Strom" />
         <input type="number" id="strom" class="value-input" value="100" min="0" step="10" />
       </div>
+      <div class="form-row income-row">
+        <input type="text" id="wohnen_e1-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
+        <input type="number" id="wohnen_e1" class="value-input" value="0" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="wohnen_e2-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
+        <input type="number" id="wohnen_e2" class="value-input" value="0" min="0" step="10" />
+      </div>
       <h2>Täglicher Bedarf →</h2>
       <div class="form-row income-row">
         <input type="text" id="lebensmittel-label" class="label-input" placeholder="Bezeichnung" value="Lebensmittel" />
@@ -171,6 +179,23 @@
       <div class="form-row income-row">
         <input type="text" id="auto-label" class="label-input" placeholder="Bezeichnung" value="Auto" />
         <input type="number" id="auto" class="value-input" value="250" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="taeglich_e1-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
+        <input type="number" id="taeglich_e1" class="value-input" value="0" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="taeglich_e2-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
+        <input type="number" id="taeglich_e2" class="value-input" value="0" min="0" step="10" />
+      </div>
+      <h2>Sparen →</h2>
+      <div class="form-row income-row">
+        <input type="text" id="sparen_e1-label" class="label-input" placeholder="Bezeichnung" value="" />
+        <input type="number" id="sparen_e1" class="value-input" value="0" min="0" step="10" />
+      </div>
+      <div class="form-row income-row">
+        <input type="text" id="sparen_e2-label" class="label-input" placeholder="Bezeichnung" value="" />
+        <input type="number" id="sparen_e2" class="value-input" value="0" min="0" step="10" />
       </div>
       <button type="button" id="btn-create">Diagramm erstellen</button>
     </div>
@@ -182,15 +207,26 @@
       const formatDE = (n) =>
         new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + '€';
 
-      const STREAM_IDS = ['wohnen', 'taeglich', 'sparen', 'miete', 'strom', 'lebensmittel', 'auto'];
+      const STREAM_IDS = [
+        'wohnen', 'taeglich', 'sparen',
+        'miete', 'strom', 'wohnen_e1', 'wohnen_e2',
+        'lebensmittel', 'auto', 'taeglich_e1', 'taeglich_e2',
+        'sparen_e1', 'sparen_e2',
+      ];
       const DEFAULT_STREAM_LABEL = {
         wohnen: 'Wohnen',
         taeglich: 'Täglicher Bedarf',
         sparen: 'Sparen',
         miete: 'Miete',
         strom: 'Strom',
+        wohnen_e1: 'Wohnen (weitere)',
+        wohnen_e2: 'Wohnen (weitere)',
         lebensmittel: 'Lebensmittel',
         auto: 'Auto',
+        taeglich_e1: 'Täglicher Bedarf (weitere)',
+        taeglich_e2: 'Täglicher Bedarf (weitere)',
+        sparen_e1: 'Sparen (Position 1)',
+        sparen_e2: 'Sparen (Position 2)',
       };
       const STREAM_COLORS = {
         wohnen: '#e8d66a',
@@ -198,8 +234,14 @@
         sparen: '#7eb8da',
         miete: '#e8d66a',
         strom: '#f0e88a',
+        wohnen_e1: '#dcc85a',
+        wohnen_e2: '#d0bc4a',
         lebensmittel: '#7bc67e',
         auto: '#8ed4a0',
+        taeglich_e1: '#6bb66e',
+        taeglich_e2: '#5fa662',
+        sparen_e1: '#6ea8ca',
+        sparen_e2: '#5e98ba',
       };
 
       function getValues() {
@@ -273,9 +315,26 @@
           { source: wohnenName, target: stromName, value: S.strom.value },
           { source: taeglichName, target: lebensmittelName, value: S.lebensmittel.value },
           { source: taeglichName, target: autoName, value: S.auto.value },
-        ].filter((l) => l.value > 0);
+        ];
 
-        return { nodes: nodes.map((n) => ({ name: n.id, color: n.color })), links };
+        function addOptionalLeaf(sourceName, streamKey) {
+          const val = S[streamKey].value;
+          if (val <= 0) return;
+          const nm = uniqueName(S[streamKey].label || DEFAULT_STREAM_LABEL[streamKey]);
+          nodes.push({ id: nm, color: STREAM_COLORS[streamKey] });
+          links.push({ source: sourceName, target: nm, value: val });
+        }
+
+        addOptionalLeaf(wohnenName, 'wohnen_e1');
+        addOptionalLeaf(wohnenName, 'wohnen_e2');
+        addOptionalLeaf(taeglichName, 'taeglich_e1');
+        addOptionalLeaf(taeglichName, 'taeglich_e2');
+        addOptionalLeaf(sparenName, 'sparen_e1');
+        addOptionalLeaf(sparenName, 'sparen_e2');
+
+        const filteredLinks = links.filter((l) => l.value > 0);
+
+        return { nodes: nodes.map((n) => ({ name: n.id, color: n.color })), links: filteredLinks };
       }
 
       function render(el, data) {
