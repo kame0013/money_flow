@@ -204,7 +204,7 @@
       flex-direction: column;
       flex: 1 1 320px;
       min-width: 320px;
-      min-height: 400px;
+      min-height: 480px;
     }
     .diagram-toolbar {
       margin-bottom: 0.65rem;
@@ -220,7 +220,7 @@
     #diagram {
       min-width: 320px;
       flex: 1;
-      min-height: 400px;
+      min-height: 480px;
       border-radius: var(--radius-sm);
       background: linear-gradient(135deg, #ecfdf5 0%, #fff1f2 55%, #fdf2f8 100%);
       border: 1px solid var(--border);
@@ -229,7 +229,7 @@
     #diagram svg {
       width: 100%;
       height: 100%;
-      min-height: 400px;
+      min-height: 480px;
       display: block;
     }
     #diagram > p {
@@ -644,14 +644,14 @@
         }));
 
         const width = el.clientWidth || 600;
-        const height = Math.max(400, el.clientHeight || 400);
-        const margin = { top: 20, right: 80, bottom: 20, left: 20 };
+        const height = Math.max(480, el.clientHeight || 480);
+        const margin = { top: 24, right: 140, bottom: 24, left: 24 };
         const diagramWidth = width - margin.left - margin.right;
         const diagramHeight = height - margin.top - margin.bottom;
 
         const sankey = d3.sankey()
           .nodeWidth(24)
-          .nodePadding(14)
+          .nodePadding(28)
           .size([diagramWidth, diagramHeight])
           .nodeAlign(d3.sankeyLeft);
 
@@ -659,18 +659,6 @@
           nodes: sankeyNodes.map((d) => ({ ...d })),
           links: sankeyLinks,
         });
-
-        /* Halve horizontal span of flows to the right of Budget (grey streams), not ribbon thickness */
-        const budgetNode = nodes.find((n) => n.name === data.budgetNodeName);
-        if (budgetNode) {
-          const pivot = budgetNode.x1;
-          nodes.forEach((n) => {
-            if (n !== budgetNode && n.x0 > pivot) {
-              n.x0 = pivot + (n.x0 - pivot) * 0.5;
-              n.x1 = pivot + (n.x1 - pivot) * 0.5;
-            }
-          });
-        }
 
         const svg = d3.select(el).append('svg').attr('width', width).attr('height', height);
         const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
