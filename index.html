@@ -126,7 +126,14 @@
     button.btn-remove-cat:hover { background: #e0e0e0; }
     button.btn-remove-cat { margin-left: auto; }
     .cat-main-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
-    .diagram-panel { display: flex; flex-direction: column; }
+    /* Must grow on .layout row like the old single #diagram.panel — otherwise the panel stays narrow and the Sankey is squeezed tall. */
+    .diagram-panel {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 320px;
+      min-width: 320px;
+      min-height: 400px;
+    }
     .diagram-toolbar { margin-bottom: 0.5rem; }
     .diagram-toolbar button { margin-top: 0; margin-bottom: 0; }
     #btn-download-png:disabled {
