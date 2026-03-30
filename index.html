@@ -128,8 +128,10 @@
     }
     .income-row { margin-bottom: 0.5rem; }
     .income-row .label-input { flex: 1; min-width: 8rem; }
+    .income-s2-row .label-input { flex: 1; min-width: 8rem; }
     .income-row .value-input { width: 6.25rem; flex-shrink: 0; }
     .cat-main-row .label-input { flex: 1; min-width: 8rem; }
+    .cat-s2-row .label-input { flex: 1; min-width: 8rem; }
     .cat-extra-row .extra-label { flex: 1; min-width: 8rem; }
     .cat-extra-row .extra-value { width: 6.25rem; flex-shrink: 0; }
     button {
@@ -173,6 +175,8 @@
     }
     button.btn-add[hidden] { display: none; }
     button.btn-remove-sub,
+    button.btn-remove-s2,
+    button.btn-remove-income2,
     button.btn-remove-cat {
       margin-top: 0;
       margin-bottom: 0;
@@ -192,6 +196,8 @@
       filter: none;
     }
     button.btn-remove-sub:hover,
+    button.btn-remove-s2:hover,
+    button.btn-remove-income2:hover,
     button.btn-remove-cat:hover {
       background: #fef2f2;
       color: #b91c1c;
@@ -284,7 +290,8 @@
           <input type="text" id="income1-label" class="label-input" placeholder="z. B. Gehalt" value="Gehalt" />
           <input type="number" id="income1-value" class="value-input" value="1900" min="0" step="10" />
         </div>
-        <div class="form-row income-row" data-income-index="2">
+        <div class="form-row income-row income-s2-row" data-income-index="2">
+          <button type="button" class="btn-remove-income2" title="Zweite Einnahme entfernen" aria-label="Zweite Einnahme entfernen">×</button>
           <input type="text" id="income2-label" class="label-input" placeholder="z. B. Weitere Einkünfte" value="Weitere Einkünfte" />
           <input type="number" id="income2-value" class="value-input" value="400" min="0" step="10" />
         </div>
@@ -382,7 +389,8 @@
           '<input type="text" id="cat-' + id + '-s1-label" class="label-input" placeholder="Bezeichnung" />' +
           '<input type="number" id="cat-' + id + '-s1" class="value-input" min="0" step="10" />' +
           '</div>' +
-          '<div class="form-row income-row">' +
+          '<div class="form-row income-row cat-s2-row">' +
+          '<button type="button" class="btn-remove-s2" title="Zweite Position entfernen" aria-label="Zweite Position entfernen">×</button>' +
           '<input type="text" id="cat-' + id + '-s2-label" class="label-input" placeholder="Bezeichnung" />' +
           '<input type="number" id="cat-' + id + '-s2" class="value-input" min="0" step="10" />' +
           '</div>' +
@@ -746,12 +754,32 @@
 
       document.getElementById('btn-add-income').addEventListener('click', addIncomeRow);
 
+      document.getElementById('income-rows').addEventListener('click', (e) => {
+        if (e.target.closest('.btn-remove-income2')) {
+          const labelEl = document.getElementById('income2-label');
+          const valueEl = document.getElementById('income2-value');
+          if (labelEl) labelEl.value = '';
+          if (valueEl) valueEl.value = '0';
+        }
+      });
+
       document.getElementById('categories-container').addEventListener('click', (e) => {
         const addExtra = e.target.closest('.btn-add-cat-extra');
         if (addExtra) {
           const block = addExtra.closest('.category-block');
           addExtraRowFromData(block, '', 0);
           syncCategoryUI();
+          return;
+        }
+        if (e.target.closest('.btn-remove-s2')) {
+          const block = e.target.closest('.category-block');
+          if (block) {
+            const id = block.dataset.catId;
+            const labelEl = document.getElementById('cat-' + id + '-s2-label');
+            const valueEl = document.getElementById('cat-' + id + '-s2');
+            if (labelEl) labelEl.value = '';
+            if (valueEl) valueEl.value = '0';
+          }
           return;
         }
         if (e.target.closest('.btn-remove-sub')) {
