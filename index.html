@@ -77,6 +77,16 @@
       cursor: pointer;
     }
     button:hover { background: #236b52; }
+    button.btn-add {
+      margin-top: 0.35rem;
+      margin-bottom: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.85rem;
+      background: #e8e8e8;
+      color: #333;
+    }
+    button.btn-add:hover { background: #ddd; }
+    button.btn-add[hidden] { display: none; }
     #diagram {
       min-width: 320px;
       flex: 1;
@@ -125,22 +135,18 @@
   <div class="layout">
     <div class="panel">
       <h2>Einnahmen</h2>
-      <div class="form-row income-row">
-        <input type="text" id="income1-label" class="label-input" placeholder="z. B. Gehalt" value="Gehalt" />
-        <input type="number" id="income1-value" class="value-input" value="1900" min="0" step="10" />
+      <div id="income-rows">
+        <div class="form-row income-row" data-income-index="1">
+          <input type="text" id="income1-label" class="label-input" placeholder="z. B. Gehalt" value="Gehalt" />
+          <input type="number" id="income1-value" class="value-input" value="1900" min="0" step="10" />
+        </div>
+        <div class="form-row income-row" data-income-index="2">
+          <input type="text" id="income2-label" class="label-input" placeholder="z. B. Weitere Einkünfte" value="Weitere Einkünfte" />
+          <input type="number" id="income2-value" class="value-input" value="400" min="0" step="10" />
+        </div>
+        <div id="income-extra-rows"></div>
       </div>
-      <div class="form-row income-row">
-        <input type="text" id="income2-label" class="label-input" placeholder="z. B. Weitere Einkünfte" value="Weitere Einkünfte" />
-        <input type="number" id="income2-value" class="value-input" value="400" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="income3-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
-        <input type="number" id="income3-value" class="value-input" value="0" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="income4-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
-        <input type="number" id="income4-value" class="value-input" value="0" min="0" step="10" />
-      </div>
+      <button type="button" class="btn-add" id="btn-add-income">+ Weitere Einnahme</button>
       <h2>Hauptkategorien (vom Budget)</h2>
       <div class="form-row income-row">
         <input type="text" id="wohnen-label" class="label-input" placeholder="Bezeichnung" value="Wohnen" />
@@ -163,14 +169,8 @@
         <input type="text" id="strom-label" class="label-input" placeholder="Bezeichnung" value="Strom" />
         <input type="number" id="strom" class="value-input" value="100" min="0" step="10" />
       </div>
-      <div class="form-row income-row">
-        <input type="text" id="wohnen_e1-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
-        <input type="number" id="wohnen_e1" class="value-input" value="0" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="wohnen_e2-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
-        <input type="number" id="wohnen_e2" class="value-input" value="0" min="0" step="10" />
-      </div>
+      <div id="wohnen-extra-rows"></div>
+      <button type="button" class="btn-add" id="btn-add-wohnen-extra">+ Weitere Position</button>
       <h2>Täglicher Bedarf →</h2>
       <div class="form-row income-row">
         <input type="text" id="lebensmittel-label" class="label-input" placeholder="Bezeichnung" value="Lebensmittel" />
@@ -180,23 +180,11 @@
         <input type="text" id="auto-label" class="label-input" placeholder="Bezeichnung" value="Auto" />
         <input type="number" id="auto" class="value-input" value="250" min="0" step="10" />
       </div>
-      <div class="form-row income-row">
-        <input type="text" id="taeglich_e1-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
-        <input type="number" id="taeglich_e1" class="value-input" value="0" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="taeglich_e2-label" class="label-input" placeholder="Weitere Position (optional)" value="" />
-        <input type="number" id="taeglich_e2" class="value-input" value="0" min="0" step="10" />
-      </div>
+      <div id="taeglich-extra-rows"></div>
+      <button type="button" class="btn-add" id="btn-add-taeglich-extra">+ Weitere Position</button>
       <h2>Sparen →</h2>
-      <div class="form-row income-row">
-        <input type="text" id="sparen_e1-label" class="label-input" placeholder="Bezeichnung" value="" />
-        <input type="number" id="sparen_e1" class="value-input" value="0" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="sparen_e2-label" class="label-input" placeholder="Bezeichnung" value="" />
-        <input type="number" id="sparen_e2" class="value-input" value="0" min="0" step="10" />
-      </div>
+      <div id="sparen-extra-rows"></div>
+      <button type="button" class="btn-add" id="btn-add-sparen-extra">+ Weitere Position</button>
       <button type="button" id="btn-create">Diagramm erstellen</button>
     </div>
     <div class="panel" id="diagram"></div>
@@ -207,12 +195,15 @@
       const formatDE = (n) =>
         new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + '€';
 
-      const STREAM_IDS = [
+      const BASE_STREAM_IDS = [
         'wohnen', 'taeglich', 'sparen',
-        'miete', 'strom', 'wohnen_e1', 'wohnen_e2',
-        'lebensmittel', 'auto', 'taeglich_e1', 'taeglich_e2',
-        'sparen_e1', 'sparen_e2',
+        'miete', 'strom', 'lebensmittel', 'auto',
       ];
+      const OPTIONAL_STREAM_KEYS = [
+        'wohnen_e1', 'wohnen_e2', 'taeglich_e1', 'taeglich_e2', 'sparen_e1', 'sparen_e2',
+      ];
+      const MAX_INCOME_ROWS = 4;
+      const MAX_EXTRAS_PER_CATEGORY = 2;
       const DEFAULT_STREAM_LABEL = {
         wohnen: 'Wohnen',
         taeglich: 'Täglicher Bedarf',
@@ -244,21 +235,84 @@
         sparen_e2: '#5e98ba',
       };
 
+      function readStream(id) {
+        const labelEl = document.getElementById(`${id}-label`);
+        const valEl = document.getElementById(id);
+        if (!labelEl || !valEl) return { label: '', value: 0 };
+        return {
+          label: (labelEl.value || '').trim(),
+          value: Number(valEl.value) || 0,
+        };
+      }
+
+      function getIncomeIndices() {
+        return [...document.querySelectorAll('#income-rows .income-row[data-income-index]')]
+          .map((el) => Number(el.dataset.incomeIndex))
+          .filter((n) => !Number.isNaN(n))
+          .sort((a, b) => a - b);
+      }
+
       function getValues() {
-        const incomes = [1, 2, 3, 4].map((i) => ({
+        const incomes = getIncomeIndices().map((i) => ({
           label: (document.getElementById(`income${i}-label`).value || '').trim(),
           value: Number(document.getElementById(`income${i}-value`).value) || 0,
         }));
-        const streams = Object.fromEntries(
-          STREAM_IDS.map((id) => [
-            id,
-            {
-              label: (document.getElementById(`${id}-label`).value || '').trim(),
-              value: Number(document.getElementById(id).value) || 0,
-            },
-          ])
-        );
+        const streams = Object.fromEntries([
+          ...BASE_STREAM_IDS.map((id) => [id, readStream(id)]),
+          ...OPTIONAL_STREAM_KEYS.map((id) => [id, readStream(id)]),
+        ]);
         return { incomes, streams };
+      }
+
+      function syncIncomeAddButton() {
+        const n = document.querySelectorAll('#income-rows .income-row[data-income-index]').length;
+        document.getElementById('btn-add-income').hidden = n >= MAX_INCOME_ROWS;
+      }
+
+      function addIncomeRow() {
+        const n = document.querySelectorAll('#income-rows .income-row[data-income-index]').length;
+        if (n >= MAX_INCOME_ROWS) return;
+        const next = n + 1;
+        const wrap = document.getElementById('income-extra-rows');
+        const div = document.createElement('div');
+        div.className = 'form-row income-row';
+        div.dataset.incomeIndex = String(next);
+        div.innerHTML =
+          '<input type="text" id="income' +
+          next +
+          '-label" class="label-input" placeholder="Weitere Position (optional)" value="" />' +
+          '<input type="number" id="income' +
+          next +
+          '-value" class="value-input" value="0" min="0" step="10" />';
+        wrap.appendChild(div);
+        syncIncomeAddButton();
+      }
+
+      function syncCategoryAddButton(containerId, btnId) {
+        const container = document.getElementById(containerId);
+        const n = container.querySelectorAll('.income-row').length;
+        document.getElementById(btnId).hidden = n >= MAX_EXTRAS_PER_CATEGORY;
+      }
+
+      function addCategoryExtra(containerId, btnId, keys) {
+        const container = document.getElementById(containerId);
+        const existing = container.querySelectorAll('.income-row').length;
+        if (existing >= MAX_EXTRAS_PER_CATEGORY) return;
+        const key = keys[existing];
+        const placeholder = containerId === 'sparen-extra-rows' ? 'Bezeichnung' : 'Weitere Position (optional)';
+        const div = document.createElement('div');
+        div.className = 'form-row income-row';
+        div.innerHTML =
+          '<input type="text" id="' +
+          key +
+          '-label" class="label-input" placeholder="' +
+          placeholder +
+          '" value="" />' +
+          '<input type="number" id="' +
+          key +
+          '" class="value-input" value="0" min="0" step="10" />';
+        container.appendChild(div);
+        syncCategoryAddButton(containerId, btnId);
       }
 
       const INCOME_COLORS = ['#7eb8da', '#e8a87c', '#9ecae1', '#fdcc8a'];
@@ -429,6 +483,22 @@
             });
         });
       }
+
+      document.getElementById('btn-add-income').addEventListener('click', addIncomeRow);
+      document.getElementById('btn-add-wohnen-extra').addEventListener('click', () => {
+        addCategoryExtra('wohnen-extra-rows', 'btn-add-wohnen-extra', ['wohnen_e1', 'wohnen_e2']);
+      });
+      document.getElementById('btn-add-taeglich-extra').addEventListener('click', () => {
+        addCategoryExtra('taeglich-extra-rows', 'btn-add-taeglich-extra', ['taeglich_e1', 'taeglich_e2']);
+      });
+      document.getElementById('btn-add-sparen-extra').addEventListener('click', () => {
+        addCategoryExtra('sparen-extra-rows', 'btn-add-sparen-extra', ['sparen_e1', 'sparen_e2']);
+      });
+
+      syncIncomeAddButton();
+      syncCategoryAddButton('wohnen-extra-rows', 'btn-add-wohnen-extra');
+      syncCategoryAddButton('taeglich-extra-rows', 'btn-add-taeglich-extra');
+      syncCategoryAddButton('sparen-extra-rows', 'btn-add-sparen-extra');
 
       const diagramEl = document.getElementById('diagram');
       document.getElementById('btn-create').addEventListener('click', () => {
