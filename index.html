@@ -126,6 +126,13 @@
     button.btn-remove-cat:hover { background: #e0e0e0; }
     button.btn-remove-cat { margin-left: auto; }
     .cat-main-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+    .diagram-panel { display: flex; flex-direction: column; }
+    .diagram-toolbar { margin-bottom: 0.5rem; }
+    .diagram-toolbar button { margin-top: 0; margin-bottom: 0; }
+    #btn-download-png:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     #diagram {
       min-width: 320px;
       flex: 1;
@@ -191,7 +198,12 @@
       <button type="button" class="btn-add" id="btn-add-category">+ Kategorie</button>
       <button type="button" id="btn-create">Diagramm erstellen</button>
     </div>
-    <div class="panel" id="diagram"></div>
+    <div class="panel diagram-panel">
+      <div class="diagram-toolbar">
+        <button type="button" class="btn-add" id="btn-download-png" disabled>PNG herunterladen</button>
+      </div>
+      <div id="diagram"></div>
+    </div>
   </div>
 
   <script>
@@ -422,10 +434,65 @@
         return { nodes: nodes.map((n) => ({ name: n.id, color: n.color })), links: filteredLinks };
       }
 
+      function syncDownloadButton() {
+        const btn = document.getElementById('btn-download-png');
+        if (!btn) return;
+        btn.disabled = !document.getElementById('diagram').querySelector('svg');
+      }
+
+      function downloadDiagramPng() {
+        const diagramEl = document.getElementById('diagram');
+        const svgEl = diagramEl.querySelector('svg');
+        if (!svgEl) return;
+        const svg = svgEl.cloneNode(true);
+        const w = Number(svg.getAttribute('width')) || svgEl.getBoundingClientRect().width;
+        const h = Number(svg.getAttribute('height')) || svgEl.getBoundingClientRect().height;
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bg.setAttribute('width', String(w));
+        bg.setAttribute('height', String(h));
+        bg.setAttribute('fill', '#ffffff');
+        svg.insertBefore(bg, svg.firstChild);
+        svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        if (!svg.getAttribute('font-family')) {
+          svg.setAttribute('font-family', 'system-ui, -apple-system, sans-serif');
+        }
+        const serializer = new XMLSerializer();
+        const source = serializer.serializeToString(svg);
+        const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const scale = 2;
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(w * scale);
+          canvas.height = Math.ceil(h * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.scale(scale, scale);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob((pngBlob) => {
+            if (!pngBlob) return;
+            const a = document.createElement('a');
+            a.download = 'geldfluss-sankey.png';
+            a.href = URL.createObjectURL(pngBlob);
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }, 'image/png');
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          alert('PNG-Export fehlgeschlagen.');
+        };
+        img.src = url;
+      }
+
       function render(el, data) {
         d3.select(el).selectAll('*').remove();
         if (data.links.length === 0) {
           el.innerHTML = '<p style="padding:1rem;color:#666;">Werte eingeben und „Diagramm erstellen“ klicken.</p>';
+          syncDownloadButton();
           return;
         }
 
@@ -512,6 +579,7 @@
               return formatDE(incoming || outgoing);
             });
         });
+        syncDownloadButton();
       }
 
       document.getElementById('btn-add-income').addEventListener('click', addIncomeRow);
@@ -551,6 +619,7 @@
       syncIncomeAddButton();
 
       const diagramEl = document.getElementById('diagram');
+      document.getElementById('btn-download-png').addEventListener('click', downloadDiagramPng);
       document.getElementById('btn-create').addEventListener('click', () => {
         const v = getValues();
         render(diagramEl, buildSankeyData(v));
