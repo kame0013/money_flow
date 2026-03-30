@@ -365,7 +365,21 @@
         return { incomes, categories: getCategoryValues() };
       }
 
-      /** Returns German error lines, or empty array if every category's sub-sum ≤ budget. */
+      /** Sum of Hauptkategorie amounts must not exceed total Einnahmen (money into Budget). */
+      function validateIncomeVsCategoryAllocations(v) {
+        const totalIncome = v.incomes.reduce((s, inc) => s + (Number(inc.value) || 0), 0);
+        const sumAlloc = v.categories.reduce((s, cat) => s + (Number(cat.budget) || 0), 0);
+        if (sumAlloc <= totalIncome) return [];
+        return [
+          'Summe der Hauptkategorien (' +
+            formatDE(sumAlloc) +
+            ') übersteigt die Summe der Einnahmen (' +
+            formatDE(totalIncome) +
+            ').',
+        ];
+      }
+
+      /** Returns German error lines, or empty array if every category's sub-sum ≤ that category's budget. */
       function validateCategorySubstreams(categories) {
         const errors = [];
         categories.forEach((cat, idx) => {
@@ -650,9 +664,11 @@
       document.getElementById('btn-download-png').addEventListener('click', downloadDiagramPng);
       document.getElementById('btn-create').addEventListener('click', () => {
         const v = getValues();
+        const allocErrors = validateIncomeVsCategoryAllocations(v);
         const subErrors = validateCategorySubstreams(v.categories);
-        if (subErrors.length > 0) {
-          alert('Bitte Werte prüfen:\n\n' + subErrors.join('\n\n'));
+        const allErrors = allocErrors.concat(subErrors);
+        if (allErrors.length > 0) {
+          alert('Bitte Werte prüfen:\n\n' + allErrors.join('\n\n'));
           return;
         }
         render(diagramEl, buildSankeyData(v));
