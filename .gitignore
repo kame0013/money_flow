@@ -1,2 +1,5 @@
 # Editor / IDE
 .cursor/
+
+# Local task list
+TODO.md
