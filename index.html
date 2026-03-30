@@ -142,35 +142,35 @@
         <input type="number" id="income4-value" class="value-input" value="0" min="0" step="10" />
       </div>
       <h2>Hauptkategorien (vom Budget)</h2>
-      <div class="form-row">
-        <label for="wohnen">Wohnen</label>
-        <input type="number" id="wohnen" value="950" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="wohnen-label" class="label-input" placeholder="Bezeichnung" value="Wohnen" />
+        <input type="number" id="wohnen" class="value-input" value="950" min="0" step="10" />
       </div>
-      <div class="form-row">
-        <label for="taeglich">Täglicher Bedarf</label>
-        <input type="number" id="taeglich" value="650" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="taeglich-label" class="label-input" placeholder="Bezeichnung" value="Täglicher Bedarf" />
+        <input type="number" id="taeglich" class="value-input" value="650" min="0" step="10" />
       </div>
-      <div class="form-row">
-        <label for="sparen">Sparen</label>
-        <input type="number" id="sparen" value="700" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="sparen-label" class="label-input" placeholder="Bezeichnung" value="Sparen" />
+        <input type="number" id="sparen" class="value-input" value="700" min="0" step="10" />
       </div>
       <h2>Wohnen →</h2>
-      <div class="form-row">
-        <label for="miete">Miete</label>
-        <input type="number" id="miete" value="850" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="miete-label" class="label-input" placeholder="Bezeichnung" value="Miete" />
+        <input type="number" id="miete" class="value-input" value="850" min="0" step="10" />
       </div>
-      <div class="form-row">
-        <label for="strom">Strom</label>
-        <input type="number" id="strom" value="100" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="strom-label" class="label-input" placeholder="Bezeichnung" value="Strom" />
+        <input type="number" id="strom" class="value-input" value="100" min="0" step="10" />
       </div>
       <h2>Täglicher Bedarf →</h2>
-      <div class="form-row">
-        <label for="lebensmittel">Lebensmittel</label>
-        <input type="number" id="lebensmittel" value="400" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="lebensmittel-label" class="label-input" placeholder="Bezeichnung" value="Lebensmittel" />
+        <input type="number" id="lebensmittel" class="value-input" value="400" min="0" step="10" />
       </div>
-      <div class="form-row">
-        <label for="auto">Auto</label>
-        <input type="number" id="auto" value="250" min="0" step="10" />
+      <div class="form-row income-row">
+        <input type="text" id="auto-label" class="label-input" placeholder="Bezeichnung" value="Auto" />
+        <input type="number" id="auto" class="value-input" value="250" min="0" step="10" />
       </div>
       <button type="button" id="btn-create">Diagramm erstellen</button>
     </div>
@@ -182,62 +182,97 @@
       const formatDE = (n) =>
         new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + '€';
 
+      const STREAM_IDS = ['wohnen', 'taeglich', 'sparen', 'miete', 'strom', 'lebensmittel', 'auto'];
+      const DEFAULT_STREAM_LABEL = {
+        wohnen: 'Wohnen',
+        taeglich: 'Täglicher Bedarf',
+        sparen: 'Sparen',
+        miete: 'Miete',
+        strom: 'Strom',
+        lebensmittel: 'Lebensmittel',
+        auto: 'Auto',
+      };
+      const STREAM_COLORS = {
+        wohnen: '#e8d66a',
+        taeglich: '#7bc67e',
+        sparen: '#7eb8da',
+        miete: '#e8d66a',
+        strom: '#f0e88a',
+        lebensmittel: '#7bc67e',
+        auto: '#8ed4a0',
+      };
+
       function getValues() {
         const incomes = [1, 2, 3, 4].map((i) => ({
           label: (document.getElementById(`income${i}-label`).value || '').trim(),
           value: Number(document.getElementById(`income${i}-value`).value) || 0,
         }));
-        return {
-          incomes,
-          wohnen: Number(document.getElementById('wohnen').value) || 0,
-          taeglich: Number(document.getElementById('taeglich').value) || 0,
-          sparen: Number(document.getElementById('sparen').value) || 0,
-          miete: Number(document.getElementById('miete').value) || 0,
-          strom: Number(document.getElementById('strom').value) || 0,
-          lebensmittel: Number(document.getElementById('lebensmittel').value) || 0,
-          auto: Number(document.getElementById('auto').value) || 0,
-        };
+        const streams = Object.fromEntries(
+          STREAM_IDS.map((id) => [
+            id,
+            {
+              label: (document.getElementById(`${id}-label`).value || '').trim(),
+              value: Number(document.getElementById(id).value) || 0,
+            },
+          ])
+        );
+        return { incomes, streams };
       }
 
       const INCOME_COLORS = ['#7eb8da', '#e8a87c', '#9ecae1', '#fdcc8a'];
 
       function buildSankeyData(v) {
         const usedNames = new Set();
+        function uniqueName(preferred) {
+          let name = (preferred || '').trim() || 'Unbenannt';
+          if (!usedNames.has(name)) {
+            usedNames.add(name);
+            return name;
+          }
+          let n = 2;
+          while (usedNames.has(`${name} (${n})`)) n++;
+          name = `${name} (${n})`;
+          usedNames.add(name);
+          return name;
+        }
+
         const activeIncomes = v.incomes
           .map((inc, i) => {
-            let name = inc.label.trim() || `Einnahme ${i + 1}`;
-            if (usedNames.has(name)) {
-              let n = 2;
-              while (usedNames.has(`${name} (${n})`)) n++;
-              name = `${name} (${n})`;
-            }
-            usedNames.add(name);
+            const name = uniqueName(inc.label.trim() || `Einnahme ${i + 1}`);
             return { ...inc, name, color: INCOME_COLORS[i % INCOME_COLORS.length] };
           })
           .filter((inc) => inc.value > 0);
-        const budget = activeIncomes.reduce((sum, inc) => sum + inc.value, 0);
+
+        const S = v.streams;
+        const budgetName = uniqueName('Budget');
+        const wohnenName = uniqueName(S.wohnen.label || DEFAULT_STREAM_LABEL.wohnen);
+        const taeglichName = uniqueName(S.taeglich.label || DEFAULT_STREAM_LABEL.taeglich);
+        const sparenName = uniqueName(S.sparen.label || DEFAULT_STREAM_LABEL.sparen);
+        const mieteName = uniqueName(S.miete.label || DEFAULT_STREAM_LABEL.miete);
+        const stromName = uniqueName(S.strom.label || DEFAULT_STREAM_LABEL.strom);
+        const lebensmittelName = uniqueName(S.lebensmittel.label || DEFAULT_STREAM_LABEL.lebensmittel);
+        const autoName = uniqueName(S.auto.label || DEFAULT_STREAM_LABEL.auto);
 
         const nodes = [
           ...activeIncomes.map((inc) => ({ id: inc.name, color: inc.color })),
-          { id: 'Budget', color: '#6b6b6b' },
-          { id: 'Wohnen', color: '#e8d66a' },
-          { id: 'Täglicher Bedarf', color: '#7bc67e' },
-          { id: 'Sparen', color: '#7eb8da' },
-          { id: 'Miete', color: '#e8d66a' },
-          { id: 'Strom', color: '#f0e88a' },
-          { id: 'Lebensmittel', color: '#7bc67e' },
-          { id: 'Auto', color: '#8ed4a0' },
+          { id: budgetName, color: '#6b6b6b' },
+          { id: wohnenName, color: STREAM_COLORS.wohnen },
+          { id: taeglichName, color: STREAM_COLORS.taeglich },
+          { id: sparenName, color: STREAM_COLORS.sparen },
+          { id: mieteName, color: STREAM_COLORS.miete },
+          { id: stromName, color: STREAM_COLORS.strom },
+          { id: lebensmittelName, color: STREAM_COLORS.lebensmittel },
+          { id: autoName, color: STREAM_COLORS.auto },
         ];
-        const incomeLinks = activeIncomes.map((inc) => ({ source: inc.name, target: 'Budget', value: inc.value }));
         const links = [
-          ...incomeLinks,
-          { source: 'Budget', target: 'Wohnen', value: v.wohnen },
-          { source: 'Budget', target: 'Täglicher Bedarf', value: v.taeglich },
-          { source: 'Budget', target: 'Sparen', value: v.sparen },
-          { source: 'Wohnen', target: 'Miete', value: v.miete },
-          { source: 'Wohnen', target: 'Strom', value: v.strom },
-          { source: 'Täglicher Bedarf', target: 'Lebensmittel', value: v.lebensmittel },
-          { source: 'Täglicher Bedarf', target: 'Auto', value: v.auto },
+          ...activeIncomes.map((inc) => ({ source: inc.name, target: budgetName, value: inc.value })),
+          { source: budgetName, target: wohnenName, value: S.wohnen.value },
+          { source: budgetName, target: taeglichName, value: S.taeglich.value },
+          { source: budgetName, target: sparenName, value: S.sparen.value },
+          { source: wohnenName, target: mieteName, value: S.miete.value },
+          { source: wohnenName, target: stromName, value: S.strom.value },
+          { source: taeglichName, target: lebensmittelName, value: S.lebensmittel.value },
+          { source: taeglichName, target: autoName, value: S.auto.value },
         ].filter((l) => l.value > 0);
 
         return { nodes: nodes.map((n) => ({ name: n.id, color: n.color })), links };
