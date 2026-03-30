@@ -33,6 +33,22 @@
       margin: 0 0 0.75rem 0;
       color: #555;
     }
+    .cat-heading {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0.5rem 0 0.75rem 0;
+      color: #555;
+    }
+    .category-block {
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+    .category-block:last-of-type {
+      border-bottom: none;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0;
+    }
     .form-row {
       display: flex;
       align-items: center;
@@ -66,6 +82,9 @@
     .income-row { margin-bottom: 0.5rem; }
     .income-row .label-input { flex: 1; min-width: 8rem; }
     .income-row .value-input { width: 6rem; flex-shrink: 0; }
+    .cat-main-row .label-input { flex: 1; min-width: 8rem; }
+    .cat-extra-row .extra-label { flex: 1; min-width: 8rem; }
+    .cat-extra-row .extra-value { width: 6rem; flex-shrink: 0; }
     button {
       margin-top: 1rem;
       padding: 0.5rem 1.25rem;
@@ -87,6 +106,26 @@
     }
     button.btn-add:hover { background: #ddd; }
     button.btn-add[hidden] { display: none; }
+    button.btn-remove-sub,
+    button.btn-remove-cat {
+      margin-top: 0;
+      margin-bottom: 0;
+      padding: 0;
+      width: 1.75rem;
+      height: 1.75rem;
+      min-width: 1.75rem;
+      font-size: 1.1rem;
+      line-height: 1;
+      background: #eee;
+      color: #555;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    button.btn-remove-sub:hover,
+    button.btn-remove-cat:hover { background: #e0e0e0; }
+    button.btn-remove-cat { margin-left: auto; }
+    .cat-main-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
     #diagram {
       min-width: 320px;
       flex: 1;
@@ -147,44 +186,9 @@
         <div id="income-extra-rows"></div>
       </div>
       <button type="button" class="btn-add" id="btn-add-income">+ Weitere Einnahme</button>
-      <h2>Hauptkategorien (vom Budget)</h2>
-      <div class="form-row income-row">
-        <input type="text" id="wohnen-label" class="label-input" placeholder="Bezeichnung" value="Wohnen" />
-        <input type="number" id="wohnen" class="value-input" value="950" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="taeglich-label" class="label-input" placeholder="Bezeichnung" value="Täglicher Bedarf" />
-        <input type="number" id="taeglich" class="value-input" value="650" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="sparen-label" class="label-input" placeholder="Bezeichnung" value="Sparen" />
-        <input type="number" id="sparen" class="value-input" value="700" min="0" step="10" />
-      </div>
-      <h2>Wohnen →</h2>
-      <div class="form-row income-row">
-        <input type="text" id="miete-label" class="label-input" placeholder="Bezeichnung" value="Miete" />
-        <input type="number" id="miete" class="value-input" value="850" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="strom-label" class="label-input" placeholder="Bezeichnung" value="Strom" />
-        <input type="number" id="strom" class="value-input" value="100" min="0" step="10" />
-      </div>
-      <div id="wohnen-extra-rows"></div>
-      <button type="button" class="btn-add" id="btn-add-wohnen-extra">+ Weitere Position</button>
-      <h2>Täglicher Bedarf →</h2>
-      <div class="form-row income-row">
-        <input type="text" id="lebensmittel-label" class="label-input" placeholder="Bezeichnung" value="Lebensmittel" />
-        <input type="number" id="lebensmittel" class="value-input" value="400" min="0" step="10" />
-      </div>
-      <div class="form-row income-row">
-        <input type="text" id="auto-label" class="label-input" placeholder="Bezeichnung" value="Auto" />
-        <input type="number" id="auto" class="value-input" value="250" min="0" step="10" />
-      </div>
-      <div id="taeglich-extra-rows"></div>
-      <button type="button" class="btn-add" id="btn-add-taeglich-extra">+ Weitere Position</button>
-      <h2>Sparen →</h2>
-      <div id="sparen-extra-rows"></div>
-      <button type="button" class="btn-add" id="btn-add-sparen-extra">+ Weitere Position</button>
+      <h2>Hauptkategorien</h2>
+      <div id="categories-container"></div>
+      <button type="button" class="btn-add" id="btn-add-category">+ Kategorie</button>
       <button type="button" id="btn-create">Diagramm erstellen</button>
     </div>
     <div class="panel" id="diagram"></div>
@@ -195,49 +199,112 @@
       const formatDE = (n) =>
         new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + '€';
 
-      const BASE_STREAM_IDS = [
-        'wohnen', 'taeglich', 'sparen',
-        'miete', 'strom', 'lebensmittel', 'auto',
-      ];
-      const OPTIONAL_STREAM_KEYS = [
-        'wohnen_e1', 'wohnen_e2', 'taeglich_e1', 'taeglich_e2', 'sparen_e1', 'sparen_e2',
-      ];
       const MAX_INCOME_ROWS = 4;
+      const MIN_CATEGORIES = 1;
+      const MAX_CATEGORIES = 10;
       const MAX_EXTRAS_PER_CATEGORY = 2;
-      const DEFAULT_STREAM_LABEL = {
-        wohnen: 'Wohnen',
-        taeglich: 'Täglicher Bedarf',
-        sparen: 'Sparen',
-        miete: 'Miete',
-        strom: 'Strom',
-        wohnen_e1: 'Wohnen (weitere)',
-        wohnen_e2: 'Wohnen (weitere)',
-        lebensmittel: 'Lebensmittel',
-        auto: 'Auto',
-        taeglich_e1: 'Täglicher Bedarf (weitere)',
-        taeglich_e2: 'Täglicher Bedarf (weitere)',
-        sparen_e1: 'Sparen (Position 1)',
-        sparen_e2: 'Sparen (Position 2)',
-      };
-      const STREAM_COLORS = {
-        wohnen: '#e8d66a',
-        taeglich: '#7bc67e',
-        sparen: '#7eb8da',
-        miete: '#e8d66a',
-        strom: '#f0e88a',
-        wohnen_e1: '#dcc85a',
-        wohnen_e2: '#d0bc4a',
-        lebensmittel: '#7bc67e',
-        auto: '#8ed4a0',
-        taeglich_e1: '#6bb66e',
-        taeglich_e2: '#5fa662',
-        sparen_e1: '#6ea8ca',
-        sparen_e2: '#5e98ba',
-      };
 
-      function readStream(id) {
-        const labelEl = document.getElementById(`${id}-label`);
-        const valEl = document.getElementById(id);
+      const CATEGORY_MAIN_COLORS = [
+        '#e8d66a', '#7bc67e', '#7eb8da', '#e8a87c', '#9ecae1',
+        '#fdcc8a', '#c9b37a', '#8a9e7e', '#6b8cae', '#a89078', '#b8a0c8',
+      ];
+
+      function subColorFromMain(mainHex, subIdx) {
+        const c = d3.color(mainHex);
+        if (!c) return mainHex;
+        return c.brighter(subIdx * 0.14).formatHex();
+      }
+
+      let catIdCounter = 0;
+
+      const INITIAL_CATEGORIES = [
+        { main: ['Wohnen', 950], s1: ['Miete', 850], s2: ['Strom', 100], extras: [] },
+        { main: ['Täglicher Bedarf', 650], s1: ['Lebensmittel', 400], s2: ['Auto', 250], extras: [] },
+        { main: ['Sparen', 700], s1: ['', 0], s2: ['', 0], extras: [] },
+      ];
+
+      function syncCategoryUI() {
+        const blocks = document.querySelectorAll('#categories-container .category-block');
+        const n = blocks.length;
+        blocks.forEach((block) => {
+          const rm = block.querySelector('.btn-remove-cat');
+          if (rm) rm.hidden = n <= MIN_CATEGORIES;
+          const extras = block.querySelectorAll('.cat-extra-row').length;
+          const addBtn = block.querySelector('.btn-add-cat-extra');
+          if (addBtn) addBtn.hidden = extras >= MAX_EXTRAS_PER_CATEGORY;
+        });
+        const addCat = document.getElementById('btn-add-category');
+        if (addCat) addCat.hidden = n >= MAX_CATEGORIES;
+      }
+
+      function addExtraRowFromData(block, label, value) {
+        const container = block.querySelector('.cat-extras');
+        if (!container || container.querySelectorAll('.cat-extra-row').length >= MAX_EXTRAS_PER_CATEGORY) return;
+        const row = document.createElement('div');
+        row.className = 'form-row income-row cat-extra-row';
+        row.innerHTML =
+          '<button type="button" class="btn-remove-sub" title="Entfernen" aria-label="Entfernen">×</button>' +
+          '<input type="text" class="label-input extra-label" placeholder="Weitere Position (optional)" />' +
+          '<input type="number" class="value-input extra-value" min="0" step="10" />';
+        row.querySelector('.extra-label').value = label;
+        row.querySelector('.extra-value').value = String(value);
+        container.appendChild(row);
+      }
+
+      function appendCategoryBlock(initial) {
+        const id = String(++catIdCounter);
+        const block = document.createElement('div');
+        block.className = 'category-block';
+        block.dataset.catId = id;
+        const main = initial.main;
+        const s1 = initial.s1;
+        const s2 = initial.s2;
+        const titleText = (main[0] || 'Kategorie').trim() || 'Kategorie';
+        block.innerHTML =
+          '<div class="form-row income-row cat-main-row">' +
+          '<input type="text" id="cat-' + id + '-main-label" class="label-input cat-main-label-input" placeholder="Bezeichnung" />' +
+          '<input type="number" id="cat-' + id + '-main" class="value-input" min="0" step="10" />' +
+          '<button type="button" class="btn-remove-cat" title="Kategorie entfernen" aria-label="Kategorie entfernen">×</button>' +
+          '</div>' +
+          '<h3 class="cat-heading"></h3>' +
+          '<div class="form-row income-row">' +
+          '<input type="text" id="cat-' + id + '-s1-label" class="label-input" placeholder="Bezeichnung" />' +
+          '<input type="number" id="cat-' + id + '-s1" class="value-input" min="0" step="10" />' +
+          '</div>' +
+          '<div class="form-row income-row">' +
+          '<input type="text" id="cat-' + id + '-s2-label" class="label-input" placeholder="Bezeichnung" />' +
+          '<input type="number" id="cat-' + id + '-s2" class="value-input" min="0" step="10" />' +
+          '</div>' +
+          '<div class="cat-extras"></div>' +
+          '<button type="button" class="btn-add btn-add-cat-extra">+ Weitere Position</button>';
+
+        document.getElementById('categories-container').appendChild(block);
+
+        document.getElementById('cat-' + id + '-main-label').value = main[0];
+        document.getElementById('cat-' + id + '-main').value = main[1];
+        document.getElementById('cat-' + id + '-s1-label').value = s1[0];
+        document.getElementById('cat-' + id + '-s1').value = s1[1];
+        document.getElementById('cat-' + id + '-s2-label').value = s2[0];
+        document.getElementById('cat-' + id + '-s2').value = s2[1];
+
+        const heading = block.querySelector('.cat-heading');
+        heading.textContent = titleText + ' →';
+
+        block.querySelector('.cat-main-label-input').addEventListener('input', () => {
+          const v = block.querySelector('.cat-main-label-input').value.trim() || 'Kategorie';
+          heading.textContent = v + ' →';
+        });
+
+        (initial.extras || []).forEach((ex) => {
+          addExtraRowFromData(block, ex[0], ex[1]);
+        });
+
+        syncCategoryUI();
+      }
+
+      function readPair(labelId, valueId) {
+        const labelEl = document.getElementById(labelId);
+        const valEl = document.getElementById(valueId);
         if (!labelEl || !valEl) return { label: '', value: 0 };
         return {
           label: (labelEl.value || '').trim(),
@@ -252,16 +319,31 @@
           .sort((a, b) => a - b);
       }
 
+      function getCategoryValues() {
+        return [...document.querySelectorAll('#categories-container .category-block')].map((block) => {
+          const id = block.dataset.catId;
+          const main = readPair('cat-' + id + '-main-label', 'cat-' + id + '-main');
+          const s1 = readPair('cat-' + id + '-s1-label', 'cat-' + id + '-s1');
+          const s2 = readPair('cat-' + id + '-s2-label', 'cat-' + id + '-s2');
+          const extras = [...block.querySelectorAll('.cat-extra-row')].map((row) => ({
+            label: (row.querySelector('.extra-label').value || '').trim(),
+            value: Number(row.querySelector('.extra-value').value) || 0,
+          }));
+          return {
+            catId: id,
+            mainLabel: main.label,
+            budget: main.value,
+            subs: [s1, s2, ...extras],
+          };
+        });
+      }
+
       function getValues() {
         const incomes = getIncomeIndices().map((i) => ({
-          label: (document.getElementById(`income${i}-label`).value || '').trim(),
-          value: Number(document.getElementById(`income${i}-value`).value) || 0,
+          label: (document.getElementById('income' + i + '-label').value || '').trim(),
+          value: Number(document.getElementById('income' + i + '-value').value) || 0,
         }));
-        const streams = Object.fromEntries([
-          ...BASE_STREAM_IDS.map((id) => [id, readStream(id)]),
-          ...OPTIONAL_STREAM_KEYS.map((id) => [id, readStream(id)]),
-        ]);
-        return { incomes, streams };
+        return { incomes, categories: getCategoryValues() };
       }
 
       function syncIncomeAddButton() {
@@ -288,33 +370,6 @@
         syncIncomeAddButton();
       }
 
-      function syncCategoryAddButton(containerId, btnId) {
-        const container = document.getElementById(containerId);
-        const n = container.querySelectorAll('.income-row').length;
-        document.getElementById(btnId).hidden = n >= MAX_EXTRAS_PER_CATEGORY;
-      }
-
-      function addCategoryExtra(containerId, btnId, keys) {
-        const container = document.getElementById(containerId);
-        const existing = container.querySelectorAll('.income-row').length;
-        if (existing >= MAX_EXTRAS_PER_CATEGORY) return;
-        const key = keys[existing];
-        const placeholder = containerId === 'sparen-extra-rows' ? 'Bezeichnung' : 'Weitere Position (optional)';
-        const div = document.createElement('div');
-        div.className = 'form-row income-row';
-        div.innerHTML =
-          '<input type="text" id="' +
-          key +
-          '-label" class="label-input" placeholder="' +
-          placeholder +
-          '" value="" />' +
-          '<input type="number" id="' +
-          key +
-          '" class="value-input" value="0" min="0" step="10" />';
-        container.appendChild(div);
-        syncCategoryAddButton(containerId, btnId);
-      }
-
       const INCOME_COLORS = ['#7eb8da', '#e8a87c', '#9ecae1', '#fdcc8a'];
 
       function buildSankeyData(v) {
@@ -326,65 +381,41 @@
             return name;
           }
           let n = 2;
-          while (usedNames.has(`${name} (${n})`)) n++;
-          name = `${name} (${n})`;
+          while (usedNames.has(name + ' (' + n + ')')) n++;
+          name = name + ' (' + n + ')';
           usedNames.add(name);
           return name;
         }
 
         const activeIncomes = v.incomes
           .map((inc, i) => {
-            const name = uniqueName(inc.label.trim() || `Einnahme ${i + 1}`);
+            const name = uniqueName(inc.label.trim() || 'Einnahme ' + (i + 1));
             return { ...inc, name, color: INCOME_COLORS[i % INCOME_COLORS.length] };
           })
           .filter((inc) => inc.value > 0);
 
-        const S = v.streams;
         const budgetName = uniqueName('Budget');
-        const wohnenName = uniqueName(S.wohnen.label || DEFAULT_STREAM_LABEL.wohnen);
-        const taeglichName = uniqueName(S.taeglich.label || DEFAULT_STREAM_LABEL.taeglich);
-        const sparenName = uniqueName(S.sparen.label || DEFAULT_STREAM_LABEL.sparen);
-        const mieteName = uniqueName(S.miete.label || DEFAULT_STREAM_LABEL.miete);
-        const stromName = uniqueName(S.strom.label || DEFAULT_STREAM_LABEL.strom);
-        const lebensmittelName = uniqueName(S.lebensmittel.label || DEFAULT_STREAM_LABEL.lebensmittel);
-        const autoName = uniqueName(S.auto.label || DEFAULT_STREAM_LABEL.auto);
-
         const nodes = [
           ...activeIncomes.map((inc) => ({ id: inc.name, color: inc.color })),
           { id: budgetName, color: '#6b6b6b' },
-          { id: wohnenName, color: STREAM_COLORS.wohnen },
-          { id: taeglichName, color: STREAM_COLORS.taeglich },
-          { id: sparenName, color: STREAM_COLORS.sparen },
-          { id: mieteName, color: STREAM_COLORS.miete },
-          { id: stromName, color: STREAM_COLORS.strom },
-          { id: lebensmittelName, color: STREAM_COLORS.lebensmittel },
-          { id: autoName, color: STREAM_COLORS.auto },
         ];
         const links = [
           ...activeIncomes.map((inc) => ({ source: inc.name, target: budgetName, value: inc.value })),
-          { source: budgetName, target: wohnenName, value: S.wohnen.value },
-          { source: budgetName, target: taeglichName, value: S.taeglich.value },
-          { source: budgetName, target: sparenName, value: S.sparen.value },
-          { source: wohnenName, target: mieteName, value: S.miete.value },
-          { source: wohnenName, target: stromName, value: S.strom.value },
-          { source: taeglichName, target: lebensmittelName, value: S.lebensmittel.value },
-          { source: taeglichName, target: autoName, value: S.auto.value },
         ];
 
-        function addOptionalLeaf(sourceName, streamKey) {
-          const val = S[streamKey].value;
-          if (val <= 0) return;
-          const nm = uniqueName(S[streamKey].label || DEFAULT_STREAM_LABEL[streamKey]);
-          nodes.push({ id: nm, color: STREAM_COLORS[streamKey] });
-          links.push({ source: sourceName, target: nm, value: val });
-        }
-
-        addOptionalLeaf(wohnenName, 'wohnen_e1');
-        addOptionalLeaf(wohnenName, 'wohnen_e2');
-        addOptionalLeaf(taeglichName, 'taeglich_e1');
-        addOptionalLeaf(taeglichName, 'taeglich_e2');
-        addOptionalLeaf(sparenName, 'sparen_e1');
-        addOptionalLeaf(sparenName, 'sparen_e2');
+        v.categories.forEach((cat, idx) => {
+          const mainColor = CATEGORY_MAIN_COLORS[idx % CATEGORY_MAIN_COLORS.length];
+          const catName = uniqueName(cat.mainLabel || 'Kategorie ' + (idx + 1));
+          nodes.push({ id: catName, color: mainColor });
+          links.push({ source: budgetName, target: catName, value: cat.budget });
+          cat.subs.forEach((sub, subIdx) => {
+            if (sub.value <= 0) return;
+            const subName = uniqueName(sub.label || 'Position ' + (subIdx + 1));
+            const subColor = subColorFromMain(mainColor, subIdx);
+            nodes.push({ id: subName, color: subColor });
+            links.push({ source: catName, target: subName, value: sub.value });
+          });
+        });
 
         const filteredLinks = links.filter((l) => l.value > 0);
 
@@ -398,7 +429,6 @@
           return;
         }
 
-        const nodeMap = new Map(data.nodes.map((n, i) => [n.name, n]));
         const nodeColors = data.nodes.map((n) => n.color || '#999');
         const sankeyNodes = data.nodes.map((n) => ({ name: n.name }));
         const sankeyLinks = data.links.map((l) => ({
@@ -425,7 +455,7 @@
         });
 
         const svg = d3.select(el).append('svg').attr('width', width).attr('height', height);
-        const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+        const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
         const link = g.append('g')
           .selectAll('path')
@@ -445,7 +475,7 @@
           .selectAll('g')
           .data(nodes)
           .join('g')
-          .attr('transform', (d) => `translate(${d.x0},${d.y0})`);
+          .attr('transform', (d) => 'translate(' + d.x0 + ',' + d.y0 + ')');
 
         node.append('rect')
           .attr('width', (d) => d.x1 - d.x0)
@@ -462,15 +492,15 @@
           const toLeft = isRightmostColumn;
           const textX = toLeft ? -labelPadding : nodeW + labelPadding;
           const textAnchor = toLeft ? 'end' : 'start';
-          const g = d3.select(this);
-          g.append('text')
+          const gNode = d3.select(this);
+          gNode.append('text')
             .attr('class', 'node-label')
             .attr('x', textX)
             .attr('y', nodeH / 2 - 6)
             .attr('text-anchor', textAnchor)
             .attr('dy', '0.35em')
             .text(d.name);
-          g.append('text')
+          gNode.append('text')
             .attr('class', 'node-value')
             .attr('x', textX)
             .attr('y', nodeH / 2 + 8)
@@ -485,29 +515,47 @@
       }
 
       document.getElementById('btn-add-income').addEventListener('click', addIncomeRow);
-      document.getElementById('btn-add-wohnen-extra').addEventListener('click', () => {
-        addCategoryExtra('wohnen-extra-rows', 'btn-add-wohnen-extra', ['wohnen_e1', 'wohnen_e2']);
-      });
-      document.getElementById('btn-add-taeglich-extra').addEventListener('click', () => {
-        addCategoryExtra('taeglich-extra-rows', 'btn-add-taeglich-extra', ['taeglich_e1', 'taeglich_e2']);
-      });
-      document.getElementById('btn-add-sparen-extra').addEventListener('click', () => {
-        addCategoryExtra('sparen-extra-rows', 'btn-add-sparen-extra', ['sparen_e1', 'sparen_e2']);
+
+      document.getElementById('categories-container').addEventListener('click', (e) => {
+        const addExtra = e.target.closest('.btn-add-cat-extra');
+        if (addExtra) {
+          const block = addExtra.closest('.category-block');
+          addExtraRowFromData(block, '', 0);
+          syncCategoryUI();
+          return;
+        }
+        if (e.target.closest('.btn-remove-sub')) {
+          e.target.closest('.cat-extra-row').remove();
+          syncCategoryUI();
+          return;
+        }
+        if (e.target.closest('.btn-remove-cat')) {
+          if (document.querySelectorAll('#categories-container .category-block').length <= MIN_CATEGORIES) return;
+          e.target.closest('.category-block').remove();
+          syncCategoryUI();
+        }
       });
 
+      document.getElementById('btn-add-category').addEventListener('click', () => {
+        if (document.querySelectorAll('#categories-container .category-block').length >= MAX_CATEGORIES) return;
+        appendCategoryBlock({
+          main: ['Neue Kategorie', 0],
+          s1: ['', 0],
+          s2: ['', 0],
+          extras: [],
+        });
+      });
+
+      INITIAL_CATEGORIES.forEach((d) => appendCategoryBlock(d));
+
       syncIncomeAddButton();
-      syncCategoryAddButton('wohnen-extra-rows', 'btn-add-wohnen-extra');
-      syncCategoryAddButton('taeglich-extra-rows', 'btn-add-taeglich-extra');
-      syncCategoryAddButton('sparen-extra-rows', 'btn-add-sparen-extra');
 
       const diagramEl = document.getElementById('diagram');
       document.getElementById('btn-create').addEventListener('click', () => {
         const v = getValues();
-        const data = buildSankeyData(v);
-        render(diagramEl, data);
+        render(diagramEl, buildSankeyData(v));
       });
 
-      // Initial render with example data
       const initial = getValues();
       render(diagramEl, buildSankeyData(initial));
     })();
