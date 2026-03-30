@@ -248,15 +248,17 @@
       stroke-opacity: 0.55;
     }
     .link:hover { stroke-opacity: 0.88; }
+    .node-label-bg {
+      fill: rgba(255, 255, 255, 0.94);
+      stroke: rgba(15, 23, 42, 0.1);
+      stroke-width: 1px;
+    }
     .node-label {
       font-family: var(--font);
       font-size: 13px;
       font-weight: 600;
       fill: var(--text);
       pointer-events: none;
-      paint-order: stroke;
-      stroke: #fff;
-      stroke-width: 2.5px;
     }
     .node-value {
       font-family: var(--font);
@@ -264,9 +266,6 @@
       font-weight: 500;
       fill: var(--text-muted);
       pointer-events: none;
-      paint-order: stroke;
-      stroke: #fff;
-      stroke-width: 2px;
     }
     .flow-value {
       font-size: 11px;
@@ -567,7 +566,11 @@
 
         const filteredLinks = links.filter((l) => l.value > 0);
 
-        return { nodes: nodes.map((n) => ({ name: n.id, color: n.color })), links: filteredLinks };
+        return {
+          nodes: nodes.map((n) => ({ name: n.id, color: n.color })),
+          links: filteredLinks,
+          budgetNodeName: budgetName,
+        };
       }
 
       function syncDownloadButton() {
@@ -657,6 +660,18 @@
           links: sankeyLinks,
         });
 
+        /* Halve horizontal span of flows to the right of Budget (grey streams), not ribbon thickness */
+        const budgetNode = nodes.find((n) => n.name === data.budgetNodeName);
+        if (budgetNode) {
+          const pivot = budgetNode.x1;
+          nodes.forEach((n) => {
+            if (n !== budgetNode && n.x0 > pivot) {
+              n.x0 = pivot + (n.x0 - pivot) * 0.5;
+              n.x1 = pivot + (n.x1 - pivot) * 0.5;
+            }
+          });
+        }
+
         const svg = d3.select(el).append('svg').attr('width', width).attr('height', height);
         const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
@@ -694,26 +709,49 @@
           const isRightmostColumn = d.x0 >= rightmostX - 1;
           const toLeft = isRightmostColumn;
           const textX = toLeft ? -labelPadding : nodeW + labelPadding;
-          const textAnchor = toLeft ? 'end' : 'start';
           const gNode = d3.select(this);
-          gNode.append('text')
+          const wrap = gNode.append('g').attr('class', 'node-label-wrap');
+          const lines = wrap.append('g').attr('class', 'node-label-lines');
+          lines
+            .append('text')
             .attr('class', 'node-label')
-            .attr('x', textX)
-            .attr('y', nodeH / 2 - 6)
-            .attr('text-anchor', textAnchor)
+            .attr('x', 0)
+            .attr('y', -6)
+            .attr('text-anchor', 'start')
             .attr('dy', '0.35em')
             .text(d.name);
-          gNode.append('text')
+          lines
+            .append('text')
             .attr('class', 'node-value')
-            .attr('x', textX)
-            .attr('y', nodeH / 2 + 8)
-            .attr('text-anchor', textAnchor)
+            .attr('x', 0)
+            .attr('y', 8)
+            .attr('text-anchor', 'start')
             .attr('dy', '0.35em')
             .text(() => {
               const incoming = d3.sum(links.filter((l) => l.target === d), (l) => l.value);
               const outgoing = d3.sum(links.filter((l) => l.source === d), (l) => l.value);
               return formatDE(incoming || outgoing);
             });
+          const padX = 8;
+          const padY = 5;
+          const labelEl = lines.select('.node-label').node();
+          const valueEl = lines.select('.node-value').node();
+          const wText = Math.max(labelEl.getComputedTextLength(), valueEl.getComputedTextLength());
+          const minX = Math.min(labelEl.getBBox().x, valueEl.getBBox().x);
+          const bbox = lines.node().getBBox();
+          const innerLeft = minX - padX;
+          const innerRight = wText + padX;
+          const wrapX = toLeft ? textX - innerRight : textX - innerLeft;
+          wrap.attr('transform', 'translate(' + wrapX + ',' + nodeH / 2 + ')');
+          wrap
+            .insert('rect', ':first-child')
+            .attr('class', 'node-label-bg')
+            .attr('x', minX - padX)
+            .attr('y', bbox.y - padY)
+            .attr('width', wText - minX + padX * 2)
+            .attr('height', bbox.height + padY * 2)
+            .attr('rx', 4)
+            .attr('ry', 4);
         });
         syncDownloadButton();
       }
